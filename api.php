@@ -3,7 +3,7 @@
 //Ustawienie nagłówków, aby API zwracało dane w formacie JSON i obsługiwało CORS
 header("Content-Type: application/json;");
 header("Access-Control-Allow-Origin: *"); //Zezwolenie na dostęp z dowolnej domeny
-header("Access-Control-Allow-Methods: GET, POST");
+header("Access-Control-Allow-Methods: GET, POST, DELETE");
 
 // Pliki do przechowywania danych (symulacja bazy danych)
 $dataFile = "data.json";
@@ -14,7 +14,7 @@ if (!file_exists($dataFile)) {
 }
 
 // Odczytanie istniejacych użytkowników
-$users = json_decode(file_get_contents($dataFile), true);
+$users = json_decode(file_get_contents($dataFile), true) ?? [];
 
 // Sprawdzamy metodę żądania HTTP
 $method = $_SERVER['REQUEST_METHOD'];
@@ -46,7 +46,29 @@ if ($method === 'GET') {
 
     // Zwracamy odpowiedź z nowym użytkownikiem
     echo json_encode(["success" => "Użytkownik dodany", "user" => $newUser]);
+} elseif ($method === 'DELETE') {
+    // Pobieramy ID użytkownika do usunięcia
+    parse_str(file_get_contents("php://input"), $deleteData);
+    $id = $deleteData['id'] ?? null;
+
+    if (!$id) {
+        echo json_encode(["error" => "Brak ID użytkownika"]);
+        exit;
+    }
+
+    // Szukamy użytkownika o podanym ID do usunięcia
+    $index = array_search($id, array_column($users, 'id'));
+    if ($index === false) {
+        echo json_encode(["error" => "Użytkownik nie istnieje"]);
+        exit;
+    }
+
+    // Usuwamy użytkownika
+    array_splice($users, $index, 1);
+    file_put_contents($dataFile, json_encode($users, JSON_PRETTY_PRINT));
+
+    echo json_encode(["success" => "Użytkownik usunięty", "id" => $id]);
 } else {
-    // Jeśli metoda nie jest GET ani POST, zwracamy błąd
-    echo json_encode(["error" => "Nieobsługiwana metoda HTTP"]);
+    // Obsługa innych metod
+    echo json_encode(["error" => "Nieobsługiwana metoda"]);
 }
